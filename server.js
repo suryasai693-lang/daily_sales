@@ -10,7 +10,7 @@ const fs = require("fs");
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 
 const GITHUB_REPO =
-    "suryasai693-lang/daily-sales";
+    "suryasai693-lang/daily_sales";
 
 const GITHUB_FILE_PATH =
     "data/sales.xlsx";
