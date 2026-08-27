@@ -3,6 +3,21 @@ const ExcelJS = require("exceljs");
 const path = require("path");
 const fs = require("fs");
 
+// =====================================================
+// GITHUB CONFIGURATION
+// =====================================================
+
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+
+const GITHUB_REPO =
+    "suryasai693-lang/daily-sales";
+
+const GITHUB_FILE_PATH =
+    "data/sales.xlsx";
+
+const GITHUB_BRANCH =
+    "main";
+
 const app = express();
 
 app.use(express.json());
@@ -19,6 +34,211 @@ const filePath = path.join(
     "sales.xlsx"
 );
 
+// =====================================================
+// DOWNLOAD SALES.XLSX FROM GITHUB
+// =====================================================
+
+async function downloadExcelFromGitHub() {
+
+    if (!GITHUB_TOKEN) {
+
+        throw new Error(
+            "GITHUB_TOKEN is not configured."
+        );
+
+    }
+
+    const url =
+        `https://api.github.com/repos/${GITHUB_REPO}/contents/${GITHUB_FILE_PATH}?ref=${GITHUB_BRANCH}`;
+
+    const response =
+        await fetch(url, {
+
+            headers: {
+
+                "Authorization":
+                    `Bearer ${GITHUB_TOKEN}`,
+
+                "Accept":
+                    "application/vnd.github+json",
+
+                "X-GitHub-Api-Version":
+                    "2022-11-28"
+
+            }
+
+        });
+
+
+    if (!response.ok) {
+
+        const errorText =
+            await response.text();
+
+        throw new Error(
+            `GitHub download failed: ${response.status} ${errorText}`
+        );
+
+    }
+
+
+    const data =
+        await response.json();
+
+
+    const fileBuffer =
+        Buffer.from(
+            data.content.replace(/\n/g, ""),
+            "base64"
+        );
+
+
+    fs.writeFileSync(
+        filePath,
+        fileBuffer
+    );
+
+
+    console.log(
+        "Latest sales.xlsx downloaded from GitHub."
+    );
+
+}
+
+
+// =====================================================
+// UPLOAD SALES.XLSX TO GITHUB
+// =====================================================
+
+async function uploadExcelToGitHub() {
+
+    if (!GITHUB_TOKEN) {
+
+        throw new Error(
+            "GITHUB_TOKEN is not configured."
+        );
+
+    }
+
+
+    const fileBuffer =
+        fs.readFileSync(
+            filePath
+        );
+
+
+    const content =
+        fileBuffer.toString("base64");
+
+
+    // ---------------------------------------------
+    // GET CURRENT FILE SHA
+    // ---------------------------------------------
+
+    const getUrl =
+        `https://api.github.com/repos/${GITHUB_REPO}/contents/${GITHUB_FILE_PATH}?ref=${GITHUB_BRANCH}`;
+
+
+    const getResponse =
+        await fetch(getUrl, {
+
+            headers: {
+
+                "Authorization":
+                    `Bearer ${GITHUB_TOKEN}`,
+
+                "Accept":
+                    "application/vnd.github+json",
+
+                "X-GitHub-Api-Version":
+                    "2022-11-28"
+
+            }
+
+        });
+
+
+    if (!getResponse.ok) {
+
+        const errorText =
+            await getResponse.text();
+
+        throw new Error(
+            `Unable to get GitHub file information: ${getResponse.status} ${errorText}`
+        );
+
+    }
+
+
+    const fileData =
+        await getResponse.json();
+
+
+    // ---------------------------------------------
+    // UPDATE FILE
+    // ---------------------------------------------
+
+    const updateUrl =
+        `https://api.github.com/repos/${GITHUB_REPO}/contents/${GITHUB_FILE_PATH}`;
+
+
+    const updateResponse =
+        await fetch(updateUrl, {
+
+            method: "PUT",
+
+            headers: {
+
+                "Authorization":
+                    `Bearer ${GITHUB_TOKEN}`,
+
+                "Accept":
+                    "application/vnd.github+json",
+
+                "Content-Type":
+                    "application/json",
+
+                "X-GitHub-Api-Version":
+                    "2022-11-28"
+
+            },
+
+            body: JSON.stringify({
+
+                message:
+                    "Update sales.xlsx from DailyStock",
+
+                content:
+                    content,
+
+                sha:
+                    fileData.sha,
+
+                branch:
+                    GITHUB_BRANCH
+
+            })
+
+        });
+
+
+    if (!updateResponse.ok) {
+
+        const errorText =
+            await updateResponse.text();
+
+        throw new Error(
+            `GitHub upload failed: ${updateResponse.status} ${errorText}`
+        );
+
+    }
+
+
+    console.log(
+        "sales.xlsx successfully updated in GitHub."
+    );
+
+}
 
 // =====================================================
 // CHECK FILE
@@ -1723,6 +1943,8 @@ app.post(
                 filePath
             );
 
+            await uploadExcelToGitHub();
+
 
             console.log(
                 "Sales and Monthly Stock updated."
@@ -1894,6 +2116,8 @@ app.post(
             await workbook.xlsx.writeFile(
                 filePath
             );
+
+            await uploadExcelToGitHub();
 
 
             res.json({
@@ -2238,7 +2462,7 @@ async function rebuildAllReports() {
 }
 
 
-rebuildAllReports();
+// rebuildAllReports();
 
 
 // =====================================================
@@ -2694,8 +2918,66 @@ app.get("/daily-sales-report", async (req, res) => {
 // START SERVER
 // =====================================================
 
-const PORT = process.env.PORT || 3000;
+// const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on port ${PORT}`);
-});
+// app.listen(PORT, "0.0.0.0", () => {
+//     console.log(`Server running on port ${PORT}`);
+// });
+
+// =====================================================
+// START SERVER
+// =====================================================
+
+const PORT =
+    process.env.PORT || 3000;
+
+
+async function startServer() {
+
+    try {
+
+        console.log(
+            "Downloading latest Excel file from GitHub..."
+        );
+
+
+        // Get the latest Excel file from GitHub
+
+        await downloadExcelFromGitHub();
+
+
+        // Rebuild reports using latest Excel data
+
+        await rebuildAllReports();
+
+
+        // Start Express server
+
+        app.listen(
+            PORT,
+            () => {
+
+                console.log(
+                    `Server running on port ${PORT}`
+                );
+
+            }
+        );
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "SERVER STARTUP ERROR:",
+            error
+        );
+
+        process.exit(1);
+
+    }
+
+}
+
+
+startServer();
