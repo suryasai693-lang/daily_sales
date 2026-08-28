@@ -1740,3 +1740,170 @@ if (
     loadDailySalesReport();
 
 }
+
+// =====================================================
+// ADD NEW ITEM
+// =====================================================
+
+async function addNewItem() {
+
+    const itemName =
+        document.getElementById("newItemName").value.trim();
+
+    const unitPrice =
+        Number(
+            document.getElementById("newItemPrice").value
+        );
+
+    const openingStock =
+        Number(
+            document.getElementById("newItemStock").value
+        );
+
+
+    // =========================================
+    // VALIDATION
+    // =========================================
+
+    if (!itemName) {
+
+        alert("Please enter item name.");
+
+        return;
+
+    }
+
+
+    if (unitPrice <= 0) {
+
+        alert("Please enter a valid unit price.");
+
+        return;
+
+    }
+
+
+    if (openingStock < 0) {
+
+        alert("Please enter a valid opening stock.");
+
+        return;
+
+    }
+
+
+    // =========================================
+    // SEND DATA TO SERVER
+    // =========================================
+
+    try {
+
+        const response =
+            await fetch("/add-item", {
+
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify({
+
+                    itemName: itemName,
+
+                    unitPrice: unitPrice,
+
+                    openingStock: openingStock
+
+                })
+
+            });
+
+
+        const result =
+            await response.json();
+
+
+        // =========================================
+        // SERVER ERROR
+        // =========================================
+
+        if (!response.ok) {
+
+            alert(
+                result.message ||
+                "Unable to add item."
+            );
+
+            return;
+
+        }
+
+
+        // =========================================
+        // SUCCESS
+        // =========================================
+
+        alert(
+            result.message ||
+            "Item added successfully."
+        );
+
+
+        // =========================================
+        // CLEAR FORM
+        // =========================================
+
+        document.getElementById(
+            "newItemName"
+        ).value = "";
+
+
+        document.getElementById(
+            "newItemPrice"
+        ).value = "";
+
+
+        document.getElementById(
+            "newItemStock"
+        ).value = "";
+
+
+        // =========================================
+        // RELOAD ITEMS
+        // =========================================
+
+        await loadItems();
+
+
+        // =========================================
+        // RELOAD DASHBOARD INVENTORY
+        // =========================================
+
+        await loadDashboardInventory();
+
+
+        // =========================================
+        // RELOAD DASHBOARD SUMMARY
+        // =========================================
+
+        await loadDashboard();
+
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "ADD ITEM ERROR:",
+            error
+        );
+
+
+        alert(
+            "Error adding new item."
+        );
+
+    }
+
+}

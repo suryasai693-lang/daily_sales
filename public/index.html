@@ -278,27 +278,41 @@
 
                 <div class="section-header">
 
-                    <div>
+```
+<div>
 
-                        <h3>
-                            Inventory Status
-                        </h3>
+    <h3>
+        Inventory Status
+    </h3>
 
-                        <p>
-                            Current stock overview
-                        </p>
+    <p>
+        Current stock overview
+    </p>
 
-                    </div>
+</div>
 
 
-                    <button
-                        class="secondary-button"
-                        onclick="window.location.href='reports.html'"
-                    >
-                        View Reports
-                    </button>
+<div>
 
-                </div>
+    <button
+        class="primary-button"
+        onclick="openAddItemForm()"
+    >
+        ➕ Add New Item
+    </button>
+
+    <button
+        class="secondary-button"
+        onclick="window.location.href='reports.html'"
+    >
+        View Reports
+    </button>
+
+</div>
+```
+
+</div>
+
 
 
                 <div class="table-container">
@@ -647,7 +661,115 @@
 
         </section>
 
-        
+        <!-- ===================================== -->
+
+<!-- ADD NEW ITEM FORM -->
+
+<!-- ===================================== -->
+
+<div
+    id="addItemForm"
+    class="form-card hidden"
+    style="margin-top: 20px;"
+>
+
+```
+<div class="page-title">
+
+    <div>
+
+        <h2>
+            Add New Item
+        </h2>
+
+        <p>
+            Add a new item to your inventory
+        </p>
+
+    </div>
+
+</div>
+
+
+<div class="form-grid">
+
+
+    <!-- ITEM NAME -->
+
+    <div class="form-group">
+
+        <label>
+            Item Name
+        </label>
+
+        <input
+            type="text"
+            id="newItemName"
+            placeholder="Enter item name"
+        >
+
+    </div>
+
+
+    <!-- UNIT PRICE -->
+
+    <div class="form-group">
+
+        <label>
+            Unit Price
+        </label>
+
+        <input
+            type="number"
+            id="newItemPrice"
+            min="0"
+            placeholder="Enter unit price"
+        >
+
+    </div>
+
+
+    <!-- OPENING STOCK -->
+
+    <div class="form-group">
+
+        <label>
+            Opening / Available Quantity
+        </label>
+
+        <input
+            type="number"
+            id="newItemStock"
+            min="0"
+            placeholder="Enter quantity"
+        >
+
+    </div>
+
+</div>
+
+
+<div class="form-actions">
+
+    <button
+        class="primary-button"
+        onclick="addNewItem()"
+    >
+        💾 Add Item
+    </button>
+
+
+    <button
+        class="secondary-button"
+        onclick="closeAddItemForm()"
+    >
+        Cancel
+    </button>
+
+</div>
+```
+
+</div>
 
 
         <!-- ===================================== -->
@@ -807,6 +929,200 @@ loadDashboard();
     // Start on Dashboard
 
     showDashboard();
+
+    // =====================================================
+// ADD NEW ITEM
+// =====================================================
+
+function openAddItemForm() {
+
+```
+document
+    .getElementById("addItemForm")
+    .classList.remove("hidden");
+```
+
+}
+
+function closeAddItemForm() {
+
+```
+document
+    .getElementById("addItemForm")
+    .classList.add("hidden");
+```
+
+}
+
+// =====================================================
+// SAVE NEW ITEM
+// =====================================================
+
+async function addNewItem() {
+
+```
+const itemName =
+    document
+        .getElementById("newItemName")
+        .value
+        .trim();
+
+
+const price =
+    Number(
+        document
+            .getElementById("newItemPrice")
+            .value
+    );
+
+
+const openingStock =
+    Number(
+        document
+            .getElementById("newItemStock")
+            .value
+    );
+
+
+// =============================================
+// VALIDATION
+// =============================================
+
+if (!itemName) {
+
+    alert("Please enter item name.");
+
+    return;
+
+}
+
+
+if (
+    isNaN(price) ||
+    price <= 0
+) {
+
+    alert("Please enter a valid unit price.");
+
+    return;
+
+}
+
+
+if (
+    isNaN(openingStock) ||
+    openingStock < 0
+) {
+
+    alert("Please enter a valid quantity.");
+
+    return;
+
+}
+
+
+try {
+
+    const response =
+        await fetch("/add-item", {
+
+            method: "POST",
+
+            headers: {
+
+                "Content-Type":
+                    "application/json"
+
+            },
+
+            body: JSON.stringify({
+
+                itemName:
+                    itemName,
+
+                price:
+                    price,
+
+                openingStock:
+                    openingStock
+
+            })
+
+        });
+
+
+    const data =
+        await response.json();
+
+
+    if (!response.ok) {
+
+        alert(
+            data.message ||
+            "Unable to add item."
+        );
+
+        return;
+
+    }
+
+
+    alert(
+        data.message ||
+        "Item added successfully!"
+    );
+
+
+    // =========================================
+    // CLEAR FORM
+    // =========================================
+
+    document
+        .getElementById("newItemName")
+        .value = "";
+
+
+    document
+        .getElementById("newItemPrice")
+        .value = "";
+
+
+    document
+        .getElementById("newItemStock")
+        .value = "";
+
+
+    closeAddItemForm();
+
+
+    // =========================================
+    // REFRESH DASHBOARD
+    // =========================================
+
+    await loadDashboard();
+
+    await loadDashboardInventory();
+
+}
+
+catch (error) {
+
+    console.error(
+        "ADD ITEM ERROR:",
+        error
+    );
+
+
+    alert(
+        "Error adding item: " +
+        error.message
+    );
+
+}
+```
+
+}
+
 
 </script>
 

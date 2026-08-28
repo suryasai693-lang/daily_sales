@@ -3283,6 +3283,9 @@ async function startServer() {
 
         await rebuildAllReports();
 
+        
+
+
 
         // =================================================
         // START EXPRESS
@@ -3315,6 +3318,331 @@ async function startServer() {
     }
 
 }
+
+
+
+// =====================================================
+// ADD NEW ITEM
+// =====================================================
+
+app.post("/add-item", async (req, res) => {
+
+    try {
+
+        const {
+            itemName,
+            unitPrice,
+            openingStock
+        } = req.body;
+
+
+        // =============================================
+        // VALIDATION
+        // =============================================
+
+        if (!itemName || itemName.trim() === "") {
+
+            return res.status(400).json({
+                success: false,
+                message: "Please enter item name."
+            });
+
+        }
+
+
+        if (
+            unitPrice === undefined ||
+            unitPrice === null ||
+            Number(unitPrice) <= 0
+        ) {
+
+            return res.status(400).json({
+                success: false,
+                message: "Please enter a valid unit price."
+            });
+
+        }
+
+
+        if (
+            openingStock === undefined ||
+            openingStock === null ||
+            Number(openingStock) < 0
+        ) {
+
+            return res.status(400).json({
+                success: false,
+                message: "Please enter a valid opening stock."
+            });
+
+        }
+
+
+        const name =
+            itemName.trim();
+
+        const price =
+            Number(unitPrice);
+
+        const stock =
+            Number(openingStock);
+
+
+        // =============================================
+        // LOAD EXCEL
+        // =============================================
+
+        const workbook =
+            new ExcelJS.Workbook();
+
+        await workbook.xlsx.readFile(
+            EXCEL_FILE
+        );
+
+
+        // =============================================
+        // ITEM MASTER
+        // =============================================
+
+        const itemMaster =
+            workbook.getWorksheet(
+                "ITEM_MASTER"
+            );
+
+
+        if (!itemMaster) {
+
+            return res.status(500).json({
+                success: false,
+                message: "ITEM_MASTER sheet not found."
+            });
+
+        }
+
+
+        // =============================================
+        // CHECK DUPLICATE ITEM
+        // =============================================
+
+        let duplicate = false;
+
+
+        itemMaster.eachRow(
+            (row, rowNumber) => {
+
+                if (rowNumber === 1) {
+                    return;
+                }
+
+
+                const existingName =
+                    getText(
+                        row.getCell(1).value
+                    )
+                    .trim()
+                    .toLowerCase();
+
+
+                if (
+                    existingName ===
+                    name.toLowerCase()
+                ) {
+
+                    duplicate = true;
+
+                }
+
+            }
+        );
+
+
+        if (duplicate) {
+
+            return res.status(400).json({
+                success: false,
+                message:
+                    `"${name}" already exists in ITEM_MASTER.`
+            });
+
+        }
+
+
+        // =============================================
+        // ADD TO ITEM_MASTER
+        // =============================================
+
+        itemMaster.addRow([
+            name,
+            price,
+            stock
+        ]);
+
+
+        // =============================================
+        // CURRENT MONTH
+        // =============================================
+
+        const now =
+            new Date();
+
+        const currentMonth =
+            `${now.getFullYear()}-${String(
+                now.getMonth() + 1
+            ).padStart(2, "0")}`;
+
+
+        // =============================================
+        // MONTHLY STOCK
+        // =============================================
+
+        let monthlyStock =
+            workbook.getWorksheet(
+                "MONTHLY_STOCK"
+            );
+
+
+        if (!monthlyStock) {
+
+            monthlyStock =
+                workbook.addWorksheet(
+                    "MONTHLY_STOCK"
+                );
+
+            monthlyStock.addRow([
+                "MONTH",
+                "ITEM NAME",
+                "UNIT PRICE",
+                "OPENING STOCK",
+                "OPENING VALUE",
+                "SUPPLY",
+                "SUPPLY VALUE",
+                "TOTAL STOCK",
+                "TOTAL VALUE",
+                "SALES QUANTITY",
+                "SALE VALUE",
+                "CLOSING STOCK",
+                "CLOSING VALUE"
+            ]);
+
+        }
+
+
+        // =============================================
+        // CALCULATE VALUES
+        // =============================================
+
+        const openingValue =
+            stock * price;
+
+        const supply =
+            0;
+
+        const supplyValue =
+            0;
+
+        const totalStock =
+            stock + supply;
+
+        const totalValue =
+            openingValue + supplyValue;
+
+        const salesQuantity =
+            0;
+
+        const saleValue =
+            0;
+
+        const closingStock =
+            totalStock - salesQuantity;
+
+        const closingValue =
+            closingStock * price;
+
+
+        // =============================================
+        // ADD TO MONTHLY STOCK
+        // =============================================
+
+        monthlyStock.addRow([
+            currentMonth,
+            name,
+            price,
+            stock,
+            openingValue,
+            supply,
+            supplyValue,
+            totalStock,
+            totalValue,
+            salesQuantity,
+            saleValue,
+            closingStock,
+            closingValue
+        ]);
+
+
+        // =============================================
+// SAVE EXCEL LOCALLY
+// =============================================
+
+await workbook.xlsx.writeFile(
+    EXCEL_FILE
+);
+
+
+// =============================================
+// READ UPDATED EXCEL FILE
+// =============================================
+
+const updatedFileBuffer =
+    fs.readFileSync(
+        EXCEL_FILE
+    );
+
+
+// =============================================
+// UPLOAD UPDATED EXCEL TO GITHUB
+// =============================================
+
+await uploadExcelToGitHub(
+    updatedFileBuffer
+);
+
+
+        // =============================================
+        // SUCCESS
+        // =============================================
+
+        res.json({
+
+            success: true,
+
+            message:
+                `"${name}" added successfully.`
+
+        });
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "ADD ITEM ERROR:",
+            error
+        );
+
+
+        res.status(500).json({
+
+            success: false,
+
+            message:
+                "Unable to add new item."
+
+        });
+
+    }
+
+});
 
 
 startServer();
